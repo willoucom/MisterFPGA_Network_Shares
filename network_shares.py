@@ -21,6 +21,7 @@
 
 import configparser
 import os
+import shutil
 import subprocess
 import time
 
@@ -45,22 +46,18 @@ def cifs_mount(settings):
     source = "//"+settings["server"]+""+settings["share"]
     options = ""
     if "username" in settings and "password" in settings:
-        options = "-o username=" + settings["username"] + ",password=" + settings["password"]
+        options = "-o username=" + \
+            settings["username"] + ",password=" + settings["password"]
     if "ADDITIONAL_MOUNT_OPTIONS" in settings and settings["ADDITIONAL_MOUNT_OPTIONS"] != "":
         options += options + "" + settings["ADDITIONAL_MOUNT_OPTIONS"]
     timeout = 10
     if "Timeout" in settings and settings["Timeout"] != "":
         timeout = settings["Timeout"]
-    # mount
+    # Wait for server
     if waitforserver(settings["server"], timeout):
+        # mount
         cmd = "/usr/bin/busybox mount -t cifs " + source + " " + dest + " " + options
         os.system(cmd)
-        if "Bindmount" in settings and settings["Bindmount"] == "True":
-            bindmount(dest, "/media/fat/games")
-            if "Clearafterbindmount" in settings and settings["Clearafterbindmount"] == "True":
-                print(" Cleaning")
-                # umount
-                umount(dest)
 
 # Mount directory using NFS(v3)
 def nfs_mount(settings):
@@ -75,17 +72,10 @@ def nfs_mount(settings):
     if "Timeout" in settings and settings["Timeout"] != "":
         timeout = settings["Timeout"]
     # Wait for server
-    waitforserver(settings["server"], timeout)
-    # mount
-    cmd = "/usr/bin/busybox mount -t nfs " + source + " " + dest + " " + options
-    os.system(cmd)
-    # Bindmount folders
-    if "Bindmount" in settings and settings["Bindmount"] == "True":
-        bindmount(dest, "/media/fat/games")
-        if "Clearafterbindmount" in settings and settings["Clearafterbindmount"] == "True":
-            print(" Cleaning")
-            # umount
-            umount(dest)
+    if waitforserver(settings["server"], timeout):
+        # mount
+        cmd = "/usr/bin/busybox mount -t nfs " + source + " " + dest + " " + options
+        os.system(cmd)
 
 # Check if directory exists and unmount
 def checkdirectory(dir):
@@ -96,6 +86,7 @@ def checkdirectory(dir):
     # umount
     umount(dir)
 
+# Unmount
 def umount(dir):
     if (os.path.ismount(dir)):
         # umount
@@ -134,6 +125,30 @@ def bindmount(source, dest):
         cmd = "mount --bind " + source + "/" + dir.name + " " + dest + "/" + dir.name
         os.system(cmd)
 
+# Symlink directories
+def symlink(source, dest):
+    print(" symlink : " + source)
+    for dir in os.scandir(source):
+        print(source + "/" + dir.name, end="\t\t")
+        if os.path.islink(dest + "/" + dir.name):
+            os.unlink(dest + "/" + dir.name)
+        elif not os.path.isdir(dest + "/" + dir.name):
+            print(dest + "/" + dir.name+" not found")
+            continue
+        elif (os.path.isdir(dest + "/" + dir.name) and os.path.isdir(source + "/" + dir.name)):
+            print(dest + "/" + dir.name+" Exists")
+            try:
+                os.rmdir(dest + "/" + dir.name)
+            except OSError as o:
+                print(" Directory not empty")
+                shutil.rmtree(dest + "/" + dir.name)
+        else:
+            print(" Error: Unknown folder")
+            continue
+
+        os.symlink(source + "/" + dir.name, dest + "/" + dir.name)
+        print(" Symlink OK")
+
 # Main
 def main():
     # Move to script directory
@@ -148,8 +163,14 @@ def main():
 
     if "CIFS" in config:  # Mount CIFS
         cifs_mount(config["CIFS"])
+        if "symlinks" in config["Settings"] and config["Settings"]["symlinks"] == "True":
+            symlink("/media/cifs", "/media/fat/games")
+
     if "NFS" in config:  # Mount NFS
         nfs_mount(config["NFS"])
+        if "symlinks" in config["Settings"] and config["Settings"]["symlinks"] == "True":
+            symlink("/media/nfs", "/media/fat/games")
+
     if "Settings" in config:
         if "runatstartup" in config["Settings"] and config["Settings"]["runatstartup"] == "True":
             writeuserscript()
