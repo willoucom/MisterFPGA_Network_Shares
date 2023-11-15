@@ -41,7 +41,7 @@ def waitforserver(server, timeout=10):
 # Mount directory using CIFS
 def cifs_mount(settings):
     print("CIFS mount")
-    dest = "/media/cifs"
+    dest = "/media/network"
     checkdirectory(dest)
     source = "//"+settings["server"]+""+settings["share"]
     options = ""
@@ -62,7 +62,7 @@ def cifs_mount(settings):
 # Mount directory using NFS(v3)
 def nfs_mount(settings):
     print("NFS mount")
-    dest = "/media/nfs"
+    dest = "/media/network"
     checkdirectory(dest)
     source = ""+settings["server"]+":"+settings["share"]
     options = "-o nolock"
@@ -109,46 +109,6 @@ def writeuserscript():
         else:  # not found, we are at the eof
             file.writelines(["# User Network Shares\n", needle, "#\n"])
 
-# Bind mount directories
-def bindmount(source, dest):
-    print(" making mount --bind for " + source)
-    for dir in os.scandir(source):
-        # create dest dir if not exists
-        if not os.path.isdir(dest + "/" + dir.name):
-            print(dest + "/" + dir.name+" not found, creating")
-            os.makedirs(dest + "/" + dir.name, exist_ok=True)
-        elif (os.path.ismount(dest + "/" + dir.name)):
-            # umount
-            cmd = "umount " + dest + "/" + dir.name
-            os.system(cmd)
-        # mount
-        cmd = "mount --bind " + source + "/" + dir.name + " " + dest + "/" + dir.name
-        os.system(cmd)
-
-# Symlink directories
-def symlink(source, dest):
-    print(" symlink : " + source)
-    for dir in os.scandir(source):
-        print(source + "/" + dir.name, end="\t\t")
-        if os.path.islink(dest + "/" + dir.name):
-            os.unlink(dest + "/" + dir.name)
-        elif not os.path.isdir(dest + "/" + dir.name):
-            print(dest + "/" + dir.name+" not found")
-            continue
-        elif (os.path.isdir(dest + "/" + dir.name) and os.path.isdir(source + "/" + dir.name)):
-            print(dest + "/" + dir.name+" Exists")
-            try:
-                os.rmdir(dest + "/" + dir.name)
-            except OSError as o:
-                print(" Directory not empty")
-                shutil.rmtree(dest + "/" + dir.name)
-        else:
-            print(" Error: Unknown folder")
-            continue
-
-        os.symlink(source + "/" + dir.name, dest + "/" + dir.name)
-        print(" Symlink OK")
-
 # Main
 def main():
     # Move to script directory
@@ -163,13 +123,9 @@ def main():
 
     if "CIFS" in config:  # Mount CIFS
         cifs_mount(config["CIFS"])
-        if "symlinks" in config["Settings"] and config["Settings"]["symlinks"] == "True":
-            symlink("/media/cifs", "/media/fat/games")
 
     if "NFS" in config:  # Mount NFS
         nfs_mount(config["NFS"])
-        if "symlinks" in config["Settings"] and config["Settings"]["symlinks"] == "True":
-            symlink("/media/nfs", "/media/fat/games")
 
     if "Settings" in config:
         if "runatstartup" in config["Settings"] and config["Settings"]["runatstartup"] == "True":

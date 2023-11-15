@@ -2,9 +2,16 @@
 
 Python script to connect a remote server and mounting games folders automatically.
 
+## Installation
+
+Add the following to the bottom of `downloader.ini`:
+
+```ini
+[willoucom/mister_network_shares]
+db_url = https://raw.githubusercontent.com/willoucom/MisterFPGA_Network_Shares/db/db.json.zip
+
 # Usage
 
-+ copy `network_shares.py` in `/media/fat/Scripts` 
 + create a `network_shares.ini` in the same directory (read the [configuration](#configuration) section of the readme)
 + run `network_shares.py`
 
