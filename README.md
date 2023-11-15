@@ -9,6 +9,7 @@ Add the following to the bottom of `downloader.ini`:
 ```ini
 [willoucom/mister_network_shares]
 db_url = https://raw.githubusercontent.com/willoucom/MisterFPGA_Network_Shares/db/db.json.zip
+```
 
 # Usage
 
